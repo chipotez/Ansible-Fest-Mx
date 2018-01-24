@@ -1,0 +1,292 @@
+---
+- hosts: localhost
+  gather_facts: False
+  tasks:
+  - name: Enviando paquetes Wake-On-Lan.
+    wakeonlan:
+      mac: 'f0:de:f1:70:20:fd'
+      broadcast: 192.168.0.255
+  - name: Instalando Hipervisor.
+    wait_for_connection:
+      delay: 500
+      timeout: 750
+    delegate_to: localhost
+  - name: Esperando conexión con servidor.
+    local_action: wait_for
+    args:
+       host: 192.168.0.22
+       port: 22
+       state: started
+       delay: 40
+       timeout: 120
+    delegate_to: localhost
+
+- hosts: Computo
+  remote_user: root
+  gather_facts: False
+  tasks:
+  - name: Configurando Repositorios.
+    get_url:
+      url: http://192.168.0.3/config_files/rhv-hiper.repo
+      dest: /etc/yum.repos.d/
+      mode: 0440
+- hosts: localhost
+  remote_user: root
+  gather_facts: True
+  vars:
+    - username: admin@internal
+    - url: 'https://manager.themike.com/ovirt-engine/api'
+    - ca_file: '/etc/pki/ovirt-engine/ca.pem'
+    - cluster: "ClusterOne"
+    - host_address: "192.168.0.58"
+    - host_netmask: "255.255.255.0"
+    - template: "Template-RHEL-v2"
+    - vm: "Ansible-Fest"
+    - password: 'redhat2018'
+  tasks:
+  - name: Registrando Hipervisor.
+    block:
+      - name: "Realizando autenticación"
+        ovirt_auth:
+          url: "{{ url }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          ca_file: "{{ ca_file }}"
+      - ovirt_hosts:
+          auth: "{{ ovirt_auth }}"
+          cluster: ClusterOne
+          name: hiper02.themike.com
+          address: 192.168.0.22
+          password: redhat2018
+- hosts: localhost
+  remote_user: root
+  gather_facts: True
+  vars:
+    - username: admin@internal
+    - url: 'https://manager.themike.com/ovirt-engine/api'
+    - ca_file: '/etc/pki/ovirt-engine/ca.pem'
+    - cluster: "ClusterOne"
+    - host_address: "192.168.0.58"
+    - host_netmask: "255.255.255.0"
+    - template: "Template-RHEL-v2"
+    - vm: "Ansible-Salinas"
+    - password: 'redhat2018'
+  tasks:
+  - name: Asignando Variables de template
+    block:
+        - name: "Realizando autenticación"
+          ovirt_auth:
+            url: "{{ url }}"
+            username: "{{ username }}"
+            password: "{{ password }}"
+            ca_file: "{{ ca_file }}"
+        - name: Creando vm desde template
+          ovirt_vms:
+            auth: "{{ ovirt_auth }}"
+            name: "{{ vm }}-{{ ansible_date_time.epoch }}"
+            template: "{{ template }}"
+            cluster: "{{ cluster }}"
+            cloud_init:
+              nic_boot_protocol: static
+              nic_ip_address: "{{ host_address }}"
+              nic_netmask: "{{ host_netmask }}"
+              nic_name: eth0
+              nic_on_boot: true
+              custom_script: |
+                write_files:
+                 - content: |
+                     BOOTPROTO=static
+                     DEVICE=eth0
+                     IPADDR=xxx.xxx.xxx.xxx
+                     NETMASK=xxx.xxx.xxx.xxx
+                     GATEWAY=xxx.xxx.xxx.xxx
+                     ONBOOT=yes
+                     TYPE=Ethernet
+                     USERCTL=no
+                     DNS1=xxx.xxx.xxx.xxx
+                     DNS2=xxx.xxx.xxx.xxx
+                   path: /tmp/greeting.txt
+                   permissions: '0644'
+              user_name: root
+              root_password: super_password
+          register: infra_instance_creation
+        - debug: var=infra_instance_creation
+        - add_host: name={{ host_address }}
+                groups=created_nodes
+- hosts: localhost
+  remote_user: root
+  gather_facts: True
+  vars:
+    - username: admin@internal
+    - url: 'https://manager.themike.com/ovirt-engine/api'
+    - ca_file: '/etc/pki/ovirt-engine/ca.pem'
+    - cluster: "ClusterOne"
+    - host_address: "192.168.0.59"
+    - host_netmask: "255.255.255.0"
+    - template: "Template-RHEL-v2"
+    - vm: "Ansible-Salinas"
+    - password: 'redhat2018'
+  tasks:
+  - name: Asignando Variables de template
+    block:
+        - name: "Realizando autenticación"
+          ovirt_auth:
+            url: "{{ url }}"
+            username: "{{ username }}"
+            password: "{{ password }}"
+            ca_file: "{{ ca_file }}"
+        - name: Creando vm desde template
+          ovirt_vms:
+            auth: "{{ ovirt_auth }}"
+            name: "{{ vm }}-{{ ansible_date_time.epoch }}"
+            template: "{{ template }}"
+            cluster: "{{ cluster }}"
+            cloud_init:
+              nic_boot_protocol: static
+              nic_ip_address: "{{ host_address }}"
+              nic_netmask: "{{ host_netmask }}"
+              nic_name: eth0
+              nic_on_boot: true
+              custom_script: |
+                write_files:
+                 - content: |
+                     BOOTPROTO=static
+                     DEVICE=eth0
+                     IPADDR=xxx.xxx.xxx.xxx
+                     NETMASK=xxx.xxx.xxx.xxx
+                     GATEWAY=xxx.xxx.xxx.xxx
+                     ONBOOT=yes
+                     TYPE=Ethernet
+                     USERCTL=no
+                     DNS1=xxx.xxx.xxx.xxx
+                     DNS2=xxx.xxx.xxx.xxx
+                   path: /tmp/greeting.txt
+                   permissions: '0644'
+              user_name: root
+              root_password: super_password
+          register: infra_instance_creation
+        - debug: var=infra_instance_creation
+        - add_host: name={{ host_address }}
+                groups=created_nodes
+
+- hosts: localhost
+  remote_user: root
+  gather_facts: True
+  vars:
+    - username: admin@internal
+    - url: 'https://manager.themike.com/ovirt-engine/api'
+    - ca_file: '/etc/pki/ovirt-engine/ca.pem'
+    - cluster: "ClusterOne"
+    - host_address: "192.168.0.60"
+    - host_netmask: "255.255.255.0"
+    - template: "Template-RHEL-v2"
+    - vm: "Ansible-Salinas"
+    - password: 'redhat2018'
+  tasks:
+  - name: Asignando Variables de template
+    block:
+        - name: "Realizando autenticación"
+          ovirt_auth:
+            url: "{{ url }}"
+            username: "{{ username }}"
+            password: "{{ password }}"
+            ca_file: "{{ ca_file }}"
+        - name: Creando vm desde template
+          ovirt_vms:
+            auth: "{{ ovirt_auth }}"
+            name: "{{ vm }}-{{ ansible_date_time.epoch }}"
+            template: "{{ template }}"
+            cluster: "{{ cluster }}"
+            cloud_init:
+              nic_boot_protocol: static
+              nic_ip_address: "{{ host_address }}"
+              nic_netmask: "{{ host_netmask }}"
+              nic_name: eth0
+              nic_on_boot: true
+              custom_script: |
+                write_files:
+                 - content: |
+                     BOOTPROTO=static
+                     DEVICE=eth0
+                     IPADDR=xxx.xxx.xxx.xxx
+                     NETMASK=xxx.xxx.xxx.xxx
+                     GATEWAY=xxx.xxx.xxx.xxx
+                     ONBOOT=yes
+                     TYPE=Ethernet
+                     USERCTL=no
+                     DNS1=xxx.xxx.xxx.xxx
+                     DNS2=xxx.xxx.xxx.xxx
+                   path: /tmp/greeting.txt
+                   permissions: '0644'
+              user_name: root
+              root_password: super_password
+          register: infra_instance_creation
+        - debug: var=infra_instance_creation
+        - add_host: name={{ host_address }}
+                groups=created_nodes
+
+- hosts: localhost
+  remote_user: root
+  gather_facts: True
+  vars:
+    - username: admin@internal
+    - url: 'https://manager.themike.com/ovirt-engine/api'
+    - ca_file: '/etc/pki/ovirt-engine/ca.pem'
+    - cluster: "ClusterOne"
+    - host_address: "192.168.0.61"
+    - host_netmask: "255.255.255.0"
+    - template: "Template-RHEL-v2"
+    - vm: "Ansible-Salinas"
+    - password: 'redhat2018'
+  tasks:
+  - name: Asignando Variables de template
+    block:
+        - name: "Realizando autenticación"
+          ovirt_auth:
+            url: "{{ url }}"
+            username: "{{ username }}"
+            password: "{{ password }}"
+            ca_file: "{{ ca_file }}"
+        - name: Creando vm desde template
+          ovirt_vms:
+            auth: "{{ ovirt_auth }}"
+            name: "{{ vm }}-{{ ansible_date_time.epoch }}"
+            template: "{{ template }}"
+            cluster: "{{ cluster }}"
+            cloud_init:
+              nic_boot_protocol: static
+              nic_ip_address: "{{ host_address }}"
+              nic_netmask: "{{ host_netmask }}"
+              nic_name: eth0
+              nic_on_boot: true
+              custom_script: |
+                write_files:
+                 - content: |
+                     BOOTPROTO=static
+                     DEVICE=eth0
+                     IPADDR=xxx.xxx.xxx.xxx
+                     NETMASK=xxx.xxx.xxx.xxx
+                     GATEWAY=xxx.xxx.xxx.xxx
+                     ONBOOT=yes
+                     TYPE=Ethernet
+                     USERCTL=no
+                     DNS1=xxx.xxx.xxx.xxx
+                     DNS2=xxx.xxx.xxx.xxx
+                   path: /tmp/greeting.txt
+                   permissions: '0644'
+              user_name: root
+              root_password: super_password
+          register: infra_instance_creation
+        - debug: var=infra_instance_creation
+        - add_host: name={{ host_address }}
+                groups=created_nodes
+
+  - name: Enviando Notificaciones
+    mail:
+      host: smtp.gmail.com
+      port: 465
+      username: mpinedam@redhat.com
+      password: 'qgulvpdtkjazulqm'
+      to: Miguel Pineda <mpinedam@redhat.com>
+      subject: Ansible-report / Red Hat México - Grupo Salinas
+      body: 'El Playbook Grupo Salinas Aprovisionamiento de Hipervisores y Máquinas Virtuales ha sido ejecutado satisfactoriamente: Ud. puede acceder a las siguientes ip: 192.168.0.58, 192.168.0.59, 192.168.0.60, 192.168.0.61 User: root Password: r3dh4t2018'
